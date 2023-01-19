@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: red
+  name: nginx-deploy-red
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: red
+  template:
+    metadata:
+      labels:
+        app: red
+    spec:
+      volumes:
+      - name: webdata
+        emptyDir: {}
+      initContainers:
+      - name: web-content
+        image: busybox
+        volumeMounts:
+        - name: webdata
+          mountPath: "/webdata"
+        command: ["/bin/sh", "-c", 'echo "<h1>I am <font color=red>RED</font></h1>" > /webdata/index.html']
+      containers:
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: webdata
+          mountPath: "/usr/share/nginx/html"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-red-service
+spec:
+  selector:
+    app: red
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-red
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /red
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-red-service
+            port:
+              number: 80

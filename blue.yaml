@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: blue
+  name: nginx-deploy-blue
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blue
+  template:
+    metadata:
+      labels:
+        app: blue
+    spec:
+      volumes:
+      - name: webdata
+        emptyDir: {}
+      initContainers:
+      - name: web-content
+        image: busybox
+        volumeMounts:
+        - name: webdata
+          mountPath: "/webdata"
+        command: ["/bin/sh", "-c", 'echo "<h1>I am <font color=blue>BLUE</font></h1>" > /webdata/index.html']
+      containers:
+      - image: nginx
+        name: nginx
+        volumeMounts:
+        - name: webdata
+          mountPath: "/usr/share/nginx/html"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-blue-service
+spec:
+  selector:
+    app: blue
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-blue
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /blue
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-blue-service
+            port:
+              number: 80
